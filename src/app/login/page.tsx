@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Smartphone } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { STORE } from "@/lib/store-config";
+import { StoreLogo } from "@/components/store-logo";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,8 +39,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Smartphone className="h-6 w-6" />
+          <div className="mx-auto mb-2 flex h-16 w-16 items-center justify-center rounded-xl bg-black p-1.5">
+            <StoreLogo size={56} className="h-full w-full" />
           </div>
           <CardTitle>{STORE.name}</CardTitle>
           <CardDescription>

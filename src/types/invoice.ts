@@ -17,6 +17,7 @@ export interface InvoiceLineItem {
 
 export interface InvoiceData {
   storeName: string;
+  storeLogoUrl?: string;
   storeAddress?: string;
   storePhone?: string;
   storeEmail?: string;

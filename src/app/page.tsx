@@ -1,17 +1,19 @@
 import Link from "next/link";
-import { Smartphone, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { STORE } from "@/lib/store-config";
+import { StoreLogo } from "@/components/store-logo";
 
 export default function HomePage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 p-6">
       <div className="mx-auto max-w-lg text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-          <Smartphone className="h-8 w-8" />
+        <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-black p-2">
+          <StoreLogo size={80} className="h-full w-full" />
         </div>
         <h1 className="text-3xl font-bold tracking-tight">{STORE.name}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{STORE.address}</p>
         <p className="mt-3 text-muted-foreground">
           Professional inventory, billing, purchase tracking, and IMEI lifecycle
           management for mobile retail businesses.

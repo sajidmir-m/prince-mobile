@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/sidebar";
 import type { UserRole } from "@/types/database";
 import { STORE } from "@/lib/store-config";
+import { StoreLogo } from "@/components/store-logo";
 
 const mainNav = [
   { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -67,9 +68,7 @@ export function AppSidebar({ role }: { role: UserRole }) {
     <Sidebar>
       <SidebarHeader className="border-b px-4 py-4">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <Smartphone className="h-5 w-5" />
-          </div>
+          <StoreLogo size={36} className="h-9 w-9 rounded-lg bg-black p-0.5" />
           <div>
             <p className="text-sm font-bold leading-none">{STORE.name}</p>
             <p className="text-xs text-muted-foreground">{STORE.phone}</p>

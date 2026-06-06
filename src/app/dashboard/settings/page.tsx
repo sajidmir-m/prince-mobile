@@ -9,17 +9,18 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { STORE } from "@/lib/store-config";
+import { StoreLogo } from "@/components/store-logo";
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
     id: "",
     store_name: STORE.name as string,
-    store_address: "",
+    store_address: STORE.address as string,
     store_phone: STORE.phone as string,
     store_email: STORE.email as string,
     gst_number: "",
     tax_rate: "0",
-    logo_url: "",
+    logo_url: STORE.logo as string,
     invoice_prefix: "INV",
   });
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -103,8 +104,12 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <Label>Store Logo</Label>
               <Input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)} />
-              {settings.logo_url && (
-                <img src={settings.logo_url} alt="Logo" className="h-16 w-16 object-contain rounded border" />
+              {(settings.logo_url || STORE.logo) && (
+                <StoreLogo
+                  src={settings.logo_url || STORE.logo}
+                  className="h-16 w-auto rounded border bg-black p-1"
+                  size={64}
+                />
               )}
             </div>
             <Button type="submit">Save Settings</Button>

@@ -55,14 +55,16 @@ export function NewSaleForm({
   customers,
   taxRate = 0,
   storeName = STORE.name,
+  storeLogoUrl = STORE.logo,
   storePhone = STORE.phone,
   storeEmail = STORE.email,
-  storeAddress = "",
+  storeAddress = STORE.address,
   storeGst = "",
 }: {
   customers: Customer[];
   taxRate?: number;
   storeName?: string;
+  storeLogoUrl?: string;
   storePhone?: string;
   storeEmail?: string;
   storeAddress?: string;
@@ -104,6 +106,7 @@ export function NewSaleForm({
 
   const buildInvoiceData = (invoiceNumber: string): InvoiceData => ({
     storeName,
+    storeLogoUrl,
     storeAddress: storeAddress || undefined,
     storePhone,
     storeEmail,
@@ -656,6 +659,7 @@ export function NewSaleForm({
           <p className="text-sm font-medium mb-2 text-muted-foreground">Live Invoice Preview</p>
           <InvoicePreview
             storeName={storeName}
+            storeLogoUrl={storeLogoUrl}
             storePhone={storePhone}
             storeEmail={storeEmail}
             storeAddress={storeAddress}

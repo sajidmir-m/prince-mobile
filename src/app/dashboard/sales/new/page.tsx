@@ -22,9 +22,10 @@ export default async function NewSalePage() {
         customers={customers || []}
         taxRate={Number(settings?.tax_rate) || 0}
         storeName={settings?.store_name || STORE.name}
+        storeLogoUrl={settings?.logo_url || STORE.logo}
         storePhone={settings?.store_phone || STORE.phone}
         storeEmail={settings?.store_email || STORE.email}
-        storeAddress={settings?.store_address || ""}
+        storeAddress={settings?.store_address || STORE.address}
         storeGst={settings?.gst_number || ""}
       />
     </div>
