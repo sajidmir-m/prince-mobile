@@ -4,13 +4,29 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import {
+  buildProductOrFilter,
+  filterAndRankSearchResults,
+  type SearchableFields,
+} from "@/lib/search-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search } from "lucide-react";
+
+type SearchResult = {
+  type: string;
+  title: string;
+  subtitle: string;
+  href: string;
+};
+
+type SearchHit = SearchResult & {
+  fields: SearchableFields;
+};
 
 export default function SearchPage() {
   const searchParams = useSearchParams();
   const q = searchParams.get("q") || "";
-  const [results, setResults] = useState<{ type: string; title: string; subtitle: string; href: string }[]>([]);
+  const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -18,35 +34,53 @@ export default function SearchPage() {
     const run = async () => {
       setLoading(true);
       const supabase = createClient();
-      const found: typeof results = [];
+      const found: SearchHit[] = [];
 
-      const [{ data: mobiles }, { data: customers }, { data: sales }, { data: suppliers }] =
-        await Promise.all([
-          supabase
-            .from("mobile_devices")
-            .select("id, brand, model, imei1")
-            .or(`imei1.ilike.%${q}%,imei2.ilike.%${q}%,model.ilike.%${q}%,brand.ilike.%${q}%`)
-            .is("deleted_at", null)
-            .limit(10),
-          supabase
-            .from("customers")
-            .select("id, name, phone")
-            .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
-            .is("deleted_at", null)
-            .limit(10),
-          supabase
-            .from("sales")
-            .select("id, sale_number")
-            .ilike("sale_number", `%${q}%`)
-            .is("deleted_at", null)
-            .limit(10),
-          supabase
-            .from("suppliers")
-            .select("id, name, phone")
-            .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
-            .is("deleted_at", null)
-            .limit(10),
-        ]);
+      const [
+        { data: mobiles },
+        { data: shDevices },
+        { data: accessories },
+        { data: customers },
+        { data: sales },
+        { data: suppliers },
+      ] = await Promise.all([
+        supabase
+          .from("mobile_devices")
+          .select("id, brand, model, imei1")
+          .or(buildProductOrFilter(q, { model: true, brand: true, imei: true }))
+          .is("deleted_at", null)
+          .limit(20),
+        supabase
+          .from("second_hand_devices")
+          .select("id, brand, model, imei1, seller_name")
+          .or(buildProductOrFilter(q, { model: true, brand: true, seller: true, imei: true }))
+          .is("deleted_at", null)
+          .limit(20),
+        supabase
+          .from("accessory_products")
+          .select("id, name, sku")
+          .or(buildProductOrFilter(q, { name: true, sku: true }))
+          .is("deleted_at", null)
+          .limit(20),
+        supabase
+          .from("customers")
+          .select("id, name, phone")
+          .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
+          .is("deleted_at", null)
+          .limit(20),
+        supabase
+          .from("sales")
+          .select("id, sale_number")
+          .ilike("sale_number", `%${q}%`)
+          .is("deleted_at", null)
+          .limit(20),
+        supabase
+          .from("suppliers")
+          .select("id, name, phone")
+          .or(`name.ilike.%${q}%,phone.ilike.%${q}%`)
+          .is("deleted_at", null)
+          .limit(20),
+      ]);
 
       mobiles?.forEach((m) =>
         found.push({
@@ -54,6 +88,25 @@ export default function SearchPage() {
           title: `${m.brand} ${m.model}`,
           subtitle: m.imei1,
           href: `/dashboard/imei?q=${m.imei1}`,
+          fields: { brand: m.brand, model: m.model, imei: m.imei1 },
+        })
+      );
+      shDevices?.forEach((d) =>
+        found.push({
+          type: "Second-Hand",
+          title: `${d.brand} ${d.model}`,
+          subtitle: `IMEI: ${d.imei1}`,
+          href: `/dashboard/imei?q=${d.imei1}`,
+          fields: { brand: d.brand, model: d.model, imei: d.imei1, seller_name: d.seller_name },
+        })
+      );
+      accessories?.forEach((a) =>
+        found.push({
+          type: "Accessory",
+          title: a.name,
+          subtitle: a.sku ? `SKU: ${a.sku}` : "Accessory",
+          href: "/dashboard/inventory/accessories",
+          fields: { name: a.name, sku: a.sku || undefined },
         })
       );
       customers?.forEach((c) =>
@@ -62,6 +115,7 @@ export default function SearchPage() {
           title: c.name,
           subtitle: c.phone,
           href: "/dashboard/customers",
+          fields: { name: c.name, phone: c.phone },
         })
       );
       sales?.forEach((s) =>
@@ -70,6 +124,7 @@ export default function SearchPage() {
           title: s.sale_number,
           subtitle: "Invoice/Sale",
           href: "/dashboard/sales",
+          fields: { sale_number: s.sale_number },
         })
       );
       suppliers?.forEach((s) =>
@@ -78,10 +133,18 @@ export default function SearchPage() {
           title: s.name,
           subtitle: s.phone || "",
           href: "/dashboard/suppliers",
+          fields: { name: s.name, phone: s.phone || undefined },
         })
       );
 
-      setResults(found);
+      const ranked = filterAndRankSearchResults(q, found, (hit) => hit.fields).map((hit) => ({
+        type: hit.type,
+        title: hit.title,
+        subtitle: hit.subtitle,
+        href: hit.href,
+      }));
+
+      setResults(ranked.slice(0, 20));
       setLoading(false);
     };
     run();

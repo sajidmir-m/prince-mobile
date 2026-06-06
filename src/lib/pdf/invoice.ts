@@ -29,9 +29,21 @@ function fmt(amount: number) {
   return `Rs. ${amount.toLocaleString("en-PK")}`;
 }
 
+function formatItemDescription(item: InvoiceData["items"][number]): string {
+  const lines = [item.description];
+  if (item.imei) {
+    lines.push("─────────────", `IMEI: ${item.imei}`);
+  }
+  if (item.warranty) {
+    lines.push("─────────────", `Warranty: ${item.warranty}`);
+  }
+  return lines.join("\n");
+}
+
 export async function generateInvoicePdf(data: InvoiceData): Promise<jsPDF> {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 14;
   const headerHeight = 48;
 
@@ -124,64 +136,86 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<jsPDF> {
   autoTable(doc, {
     startY: 92,
     margin: { left: margin, right: margin },
-    head: [["#", "Description", "IMEI", "Qty", "Unit Price", "Amount"]],
+    head: [["#", "Description", "Qty", "Unit Price", "Amount"]],
     body: data.items.map((item, i) => [
       String(i + 1),
-      item.description + (item.warranty ? `\nWarranty: ${item.warranty}` : ""),
-      item.imei || "—",
+      formatItemDescription(item),
       String(item.qty),
       fmt(item.unitPrice),
       fmt(item.total),
     ]),
     theme: "striped",
     headStyles: { fillColor: [0, 0, 0], fontSize: 8, textColor: 255 },
-    bodyStyles: { fontSize: 8 },
+    bodyStyles: { fontSize: 8, cellPadding: 3 },
     columnStyles: {
       0: { cellWidth: 10 },
-      1: { cellWidth: 58 },
-      2: { cellWidth: 32, fontStyle: "normal" },
-      3: { cellWidth: 12, halign: "center" },
-      4: { cellWidth: 28, halign: "right" },
-      5: { cellWidth: 28, halign: "right" },
+      1: { cellWidth: 88 },
+      2: { cellWidth: 14, halign: "center" },
+      3: { cellWidth: 32, halign: "right" },
+      4: { cellWidth: 32, halign: "right" },
     },
   });
 
   const finalY = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable?.finalY ?? 120;
   const totalsX = pageWidth - margin - 55;
+  let y = finalY + 10;
 
   doc.setFontSize(9);
-  doc.text("Subtotal:", totalsX, finalY + 12);
-  doc.text(fmt(data.subtotal), pageWidth - margin, finalY + 12, { align: "right" });
+  doc.setFont("helvetica", "normal");
+  doc.text("Subtotal:", totalsX, y);
+  doc.text(fmt(data.subtotal), pageWidth - margin, y, { align: "right" });
+  y += 6;
 
-  let offset = 18;
   if (data.taxAmount > 0) {
-    doc.text(`Tax${data.taxRate ? ` (${data.taxRate}%)` : ""}:`, totalsX, finalY + offset);
-    doc.text(fmt(data.taxAmount), pageWidth - margin, finalY + offset, { align: "right" });
-    offset += 6;
+    doc.text(`Tax${data.taxRate ? ` (${data.taxRate}%)` : ""}:`, totalsX, y);
+    doc.text(fmt(data.taxAmount), pageWidth - margin, y, { align: "right" });
+    y += 6;
   }
 
   if (data.discount > 0) {
-    doc.text("Discount:", totalsX, finalY + offset);
-    doc.text(`- ${fmt(data.discount)}`, pageWidth - margin, finalY + offset, { align: "right" });
-    offset += 6;
+    doc.text("Discount:", totalsX, y);
+    doc.text(`- ${fmt(data.discount)}`, pageWidth - margin, y, { align: "right" });
+    y += 6;
   }
 
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.text("GRAND TOTAL:", totalsX, finalY + offset + 6);
-  doc.text(fmt(data.total), pageWidth - margin, finalY + offset + 6, { align: "right" });
-  doc.setFont("helvetica", "normal");
+  y += 4;
 
   if (data.notes) {
-    doc.setFontSize(8);
-    doc.text("Notes:", margin, finalY + 14);
-    doc.text(data.notes, margin, finalY + 20, { maxWidth: 90 });
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.2);
+    doc.line(margin, y, pageWidth - margin, y);
+    y += 6;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Notes:", margin, y);
+    y += 5;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const noteLines = doc.splitTextToSize(data.notes, pageWidth - margin * 2);
+    doc.text(noteLines, margin, y);
+    y += noteLines.length * 5 + 6;
   }
 
+  // Grand total — always last before footer
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.6);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 8;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("GRAND TOTAL:", totalsX - 10, y);
+  doc.text(fmt(data.total), pageWidth - margin, y, { align: "right" });
+
   doc.setFontSize(7);
+  doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text("Thank you for shopping at " + data.storeName, pageWidth / 2, 285, { align: "center" });
-  doc.text("Goods sold are not returnable unless stated in warranty.", pageWidth / 2, 289, {
+  doc.text("Thank you for shopping at " + data.storeName, pageWidth / 2, pageHeight - 14, {
+    align: "center",
+  });
+  doc.text("Goods sold are not returnable unless stated in warranty.", pageWidth / 2, pageHeight - 10, {
     align: "center",
   });
 

@@ -5,6 +5,15 @@ import { STORE } from "@/lib/store-config";
 import type { InvoiceCustomerInfo, InvoiceLineItem } from "@/types/invoice";
 import { Separator } from "@/components/ui/separator";
 
+function ItemLine({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border-t border-dashed border-black/15 pt-1 mt-1">
+      <p className="text-[10px] text-muted-foreground">{label}</p>
+      <p className="font-mono text-[11px]">{value}</p>
+    </div>
+  );
+}
+
 export function InvoicePreview({
   storeName = STORE.name,
   storeLogoUrl = STORE.logo,
@@ -98,43 +107,45 @@ export function InvoicePreview({
 
         {/* Line items */}
         {items.length > 0 ? (
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b-2 border-black/20 text-left text-muted-foreground">
-                <th className="pb-2 pr-2 w-6">#</th>
-                <th className="pb-2">Description</th>
-                <th className="pb-2 text-right">Qty</th>
-                <th className="pb-2 text-right">Unit Price</th>
-                <th className="pb-2 text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item, i) => (
-                <tr key={i} className="border-b border-dashed last:border-0">
-                  <td className="py-2 pr-2 text-muted-foreground align-top">{i + 1}</td>
-                  <td className="py-2 align-top">
-                    <p className="font-medium">{item.description}</p>
-                    {item.imei && (
-                      <p className="font-mono text-[10px] text-muted-foreground">IMEI: {item.imei}</p>
-                    )}
-                    {item.warranty && (
-                      <p className="text-[10px] text-muted-foreground">Warranty: {item.warranty}</p>
-                    )}
-                  </td>
-                  <td className="py-2 text-right align-top">{item.qty}</td>
-                  <td className="py-2 text-right align-top">{formatCurrency(item.unitPrice)}</td>
-                  <td className="py-2 text-right font-medium align-top">{formatCurrency(item.total)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="space-y-3">
+            {items.map((item, i) => (
+              <div key={i} className="border-b border-black/20 pb-3 last:border-b-0">
+                <div className="flex justify-between gap-3 items-start">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex gap-2 items-start">
+                      <span className="text-muted-foreground text-xs shrink-0">{i + 1}.</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium">{item.description}</p>
+                        {item.imei && <ItemLine label="IMEI" value={item.imei} />}
+                        {item.warranty && <ItemLine label="Warranty" value={item.warranty} />}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right text-xs shrink-0 space-y-0.5">
+                    <p>
+                      <span className="text-muted-foreground">Qty:</span> {item.qty}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Rate:</span> {formatCurrency(item.unitPrice)}
+                    </p>
+                    <p className="font-semibold">
+                      <span className="text-muted-foreground font-normal">Amt:</span>{" "}
+                      {formatCurrency(item.total)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         ) : (
           <p className="text-center text-muted-foreground py-4 text-xs">Add products to preview invoice</p>
         )}
 
-        {/* Totals */}
+        <Separator />
+
+        {/* Subtotals */}
         <div className="flex justify-end">
-          <div className="w-full max-w-[220px] space-y-1 text-xs border-t pt-3">
+          <div className="w-full max-w-[220px] space-y-1 text-xs">
             <div className="flex justify-between">
               <span>Subtotal</span>
               <span>{formatCurrency(subtotal)}</span>
@@ -151,18 +162,26 @@ export function InvoicePreview({
                 <span>-{formatCurrency(discount)}</span>
               </div>
             )}
-            <div className="flex justify-between font-bold text-base border-t pt-1 mt-1">
-              <span>Grand Total</span>
-              <span>{formatCurrency(total)}</span>
-            </div>
           </div>
         </div>
 
         {notes && (
-          <p className="text-xs text-muted-foreground border-t pt-2">
-            <span className="font-medium">Notes:</span> {notes}
-          </p>
+          <>
+            <Separator />
+            <div className="rounded-md border border-black/10 bg-neutral-50 p-3">
+              <p className="text-sm font-semibold mb-1">Notes</p>
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">{notes}</p>
+            </div>
+          </>
         )}
+
+        {/* Grand total — always last */}
+        <div className="border-t-2 border-black pt-3">
+          <div className="flex justify-between items-center font-bold text-lg">
+            <span>Grand Total</span>
+            <span>{formatCurrency(total)}</span>
+          </div>
+        </div>
 
         {/* Footer */}
         <div className="border-t pt-3 text-center text-[10px] text-muted-foreground space-y-0.5">
