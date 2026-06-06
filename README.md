@@ -1,36 +1,95 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Prince Mobile Store ERP
 
-## Getting Started
+**Prince Mobile Store** · 9796639516 · princemobilestore786@gmail.com
 
-First, run the development server:
+Production-grade mobile store billing, inventory, and **IMEI lifecycle tracking** system built with Next.js, TypeScript, Tailwind CSS, Shadcn UI, and Supabase.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Features
+
+- **Role-based access** — Admin (full access) and Staff (sales, inventory view, invoices)
+- **New mobile inventory** — IMEI 1/2, specs, purchase bill upload, status tracking
+- **Second-hand module** — Seller info, condition, document uploads (ID, agreement, bills)
+- **Accessories inventory** — SKU, quantity, auto stock decrease on sale
+- **Sales & billing** — Search by IMEI/model/SKU, PDF invoice generation
+- **IMEI Tracker** — Complete purchase → sale history with documents
+- **Customers & suppliers** — Purchase history, soft delete
+- **Purchases, reports, audit trail** — Excel export, daily/weekly/monthly/yearly
+- **Global search** — IMEI, customer, invoice, supplier
+- **QR codes** — Auto-generated for IMEI and SKU
+
+## Quick Start
+
+### 1. Supabase setup
+
+1. Create a project at [supabase.com](https://supabase.com)
+2. Run SQL migrations in order:
+   - `supabase/migrations/001_initial_schema.sql`
+   - `supabase/migrations/002_storage_buckets.sql`
+   - `supabase/migrations/003_store_contact.sql` (if needed)
+   - **`supabase/migrations/004_fix_auth_user_trigger.sql`** — required if user creation fails
+3. Enable Email auth in Authentication → Providers
+4. Create your first admin user in Authentication → Users, then set role in SQL:
+
+**If you see "Database error creating new user"** — run `004_fix_auth_user_trigger.sql` in the SQL Editor, then try again.
+
+```sql
+UPDATE profiles SET role = 'admin' WHERE email = 'your@email.com';
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Environment variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Copy `.env.local.example` to `.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
 
-## Learn More
+### 3. Run locally
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
 
-## Deploy on Vercel
+```
+src/
+  app/
+    dashboard/          # Protected ERP routes
+    login/              # Auth
+  components/
+    inventory/          # Mobile & second-hand forms
+    sales/              # POS / checkout
+    imei/               # IMEI lifecycle tracker
+    layout/             # Sidebar & header
+  lib/
+    supabase/           # Client, server, middleware
+    pdf/                # Invoice PDF generator
+    imei.ts             # IMEI history API
+supabase/migrations/    # PostgreSQL schema + RLS
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Default Categories
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Mobile Phones, Second-Hand, Earphones, Chargers, Smart Watches, Power Banks, Covers, Screen Protectors, Bluetooth Speakers, Accessories, Other Products — plus unlimited custom categories.
+
+## Future: Repair Module
+
+Schema-ready extension for device repair tracking (received, status, technician notes, delivery).
+
+## Tech Stack
+
+| Layer        | Technology        |
+|-------------|-------------------|
+| Frontend    | Next.js 15+, TS, Tailwind, Shadcn |
+| Backend     | Supabase          |
+| Database    | PostgreSQL        |
+| Auth        | Supabase Auth     |
+| Storage     | Supabase Storage  |
+| PDF         | jsPDF             |
+| QR          | react-qr-code     |
+| Reports     | xlsx              |
