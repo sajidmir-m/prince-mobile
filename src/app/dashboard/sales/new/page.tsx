@@ -1,6 +1,26 @@
 import { createClient } from "@/lib/supabase/server";
 import { NewSaleForm } from "@/components/sales/new-sale-form";
 import { STORE } from "@/lib/store-config";
+import type { InvoiceBankDetails } from "@/types/invoice";
+
+function buildBankDetails(settings: {
+  bank_name?: string | null;
+  bank_account_title?: string | null;
+  bank_account_number?: string | null;
+  bank_branch?: string | null;
+  bank_iban?: string | null;
+} | null): InvoiceBankDetails | undefined {
+  if (!settings) return undefined;
+  const bank: InvoiceBankDetails = {
+    bankName: settings.bank_name || undefined,
+    accountTitle: settings.bank_account_title || undefined,
+    accountNumber: settings.bank_account_number || undefined,
+    branch: settings.bank_branch || undefined,
+    iban: settings.bank_iban || undefined,
+  };
+  const hasAny = Object.values(bank).some((v) => v?.trim());
+  return hasAny ? bank : undefined;
+}
 
 export default async function NewSalePage() {
   const supabase = await createClient();
@@ -27,6 +47,7 @@ export default async function NewSalePage() {
         storeEmail={settings?.store_email || STORE.email}
         storeAddress={settings?.store_address || STORE.address}
         storeGst={settings?.gst_number || ""}
+        bankDetails={buildBankDetails(settings)}
       />
     </div>
   );

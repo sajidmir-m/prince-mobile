@@ -29,7 +29,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { STORE } from "@/lib/store-config";
 import type { Customer } from "@/types/database";
-import type { InvoiceCustomerInfo, InvoiceData } from "@/types/invoice";
+import type {
+  InvoiceBankDetails,
+  InvoiceCustomerInfo,
+  InvoiceData,
+  InvoiceItemDetails,
+} from "@/types/invoice";
 
 interface CartItem {
   product_type: string;
@@ -41,6 +46,7 @@ interface CartItem {
   purchase_unit_cost: number;
   warranty_info: string | null;
   max_qty: number;
+  details: InvoiceItemDetails;
 }
 
 const emptyCustomer = (): InvoiceCustomerInfo => ({
@@ -60,6 +66,7 @@ export function NewSaleForm({
   storeEmail = STORE.email,
   storeAddress = STORE.address,
   storeGst = "",
+  bankDetails,
 }: {
   customers: Customer[];
   taxRate?: number;
@@ -69,6 +76,7 @@ export function NewSaleForm({
   storeEmail?: string;
   storeAddress?: string;
   storeGst?: string;
+  bankDetails?: InvoiceBankDetails;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -97,11 +105,10 @@ export function NewSaleForm({
 
   const invoiceItems = cart.map((i) => ({
     description: i.description,
-    imei: i.imei,
+    details: i.details,
     qty: i.quantity,
     unitPrice: i.unit_price,
     total: i.unit_price * i.quantity,
-    warranty: i.warranty_info,
   }));
 
   const buildInvoiceData = (invoiceNumber: string): InvoiceData => ({
@@ -128,6 +135,7 @@ export function NewSaleForm({
     total,
     paymentMethod,
     notes: invoiceNotes.trim() || undefined,
+    bankDetails,
     qrData: cart.find((c) => c.imei)?.imei
       ? getImeiQrData(cart.find((c) => c.imei)!.imei!)
       : undefined,
@@ -177,6 +185,7 @@ export function NewSaleForm({
         purchase_unit_cost: item.purchase_unit_cost,
         warranty_info: item.warranty_info,
         max_qty: item.max_qty,
+        details: item.details,
       },
     ]);
     toast.success("Added to cart");
@@ -675,6 +684,7 @@ export function NewSaleForm({
             total={total}
             paymentMethod={paymentMethod}
             notes={invoiceNotes}
+            bankDetails={bankDetails}
           />
         </div>
       </div>

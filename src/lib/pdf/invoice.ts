@@ -1,11 +1,25 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import {
+  formatInvoiceItemDetailsText,
+  getBankDetailLines,
+  getCustomerDetailLines,
+  getInvoiceMetaLines,
+  hasBankDetails,
+  type DetailLine,
+} from "@/lib/invoice-item-details";
 import { STORE } from "@/lib/store-config";
 import type { InvoiceData } from "@/types/invoice";
 
 export type InvoicePdfData = InvoiceData;
 
 let cachedLogoDataUrl: string | null = null;
+
+const GOLD: [number, number, number] = [218, 165, 32];
+const LIGHT_BG: [number, number, number] = [250, 250, 250];
+const MUTED: [number, number, number] = [100, 100, 100];
+
+const BOLD_LABELS = new Set(["Customer Name", "Invoice No.", "Account Number"]);
 
 async function getLogoDataUrl(url: string): Promise<string | null> {
   if (cachedLogoDataUrl) return cachedLogoDataUrl;
@@ -30,14 +44,81 @@ function fmt(amount: number) {
 }
 
 function formatItemDescription(item: InvoiceData["items"][number]): string {
-  const lines = [item.description];
-  if (item.imei) {
-    lines.push("─────────────", `IMEI: ${item.imei}`);
+  const detailText = formatInvoiceItemDetailsText(item.details);
+  if (!detailText) return item.description;
+  return `${item.description}\n${detailText}`;
+}
+
+function measureStepBlockHeight(
+  doc: jsPDF,
+  width: number,
+  lines: DetailLine[]
+): number {
+  const innerW = width - 8;
+  let h = 12; // title area
+
+  for (const line of lines) {
+    h += 4; // label
+    doc.setFontSize(9);
+    const valueLines = doc.splitTextToSize(line.value, innerW);
+    h += valueLines.length * 4.2;
+    h += 3; // separator gap
   }
-  if (item.warranty) {
-    lines.push("─────────────", `Warranty: ${item.warranty}`);
+
+  return h + 4; // bottom padding
+}
+
+function drawStepBlock(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  width: number,
+  title: string,
+  lines: DetailLine[]
+): number {
+  const blockHeight = measureStepBlockHeight(doc, width, lines);
+  const innerW = width - 8;
+
+  doc.setFillColor(...LIGHT_BG);
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.4);
+  doc.roundedRect(x, y, width, blockHeight, 2, 2, "FD");
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text(title.toUpperCase(), x + 4, y + 7);
+
+  doc.setDrawColor(...GOLD);
+  doc.setLineWidth(0.8);
+  doc.line(x + width - 28, y + 5, x + width - 4, y + 5);
+
+  let cy = y + 14;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(...MUTED);
+    doc.text(line.label, x + 4, cy);
+    cy += 4;
+
+    doc.setFont("helvetica", BOLD_LABELS.has(line.label) ? "bold" : "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    const valueLines = doc.splitTextToSize(line.value, innerW);
+    doc.text(valueLines, x + 4, cy);
+    cy += valueLines.length * 4.2;
+
+    if (i < lines.length - 1) {
+      doc.setDrawColor(220, 220, 220);
+      doc.setLineWidth(0.15);
+      doc.line(x + 4, cy, x + width - 4, cy);
+      cy += 3;
+    }
   }
-  return lines.join("\n");
+
+  return blockHeight;
 }
 
 export async function generateInvoicePdf(data: InvoiceData): Promise<jsPDF> {
@@ -46,18 +127,17 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<jsPDF> {
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 14;
   const headerHeight = 48;
+  const colGap = 6;
+  const colWidth = (pageWidth - margin * 2 - colGap) / 2;
 
   const logoUrl = data.storeLogoUrl || STORE.logo;
   const logoData = await getLogoDataUrl(logoUrl);
 
-  // Black branded header
   doc.setFillColor(0, 0, 0);
   doc.rect(0, 0, pageWidth, headerHeight, "F");
 
   if (logoData) {
-    const logoW = 36;
-    const logoH = 22;
-    doc.addImage(logoData, "JPEG", (pageWidth - logoW) / 2, 4, logoW, logoH);
+    doc.addImage(logoData, "JPEG", (pageWidth - 36) / 2, 4, 36, 22);
   }
 
   doc.setTextColor(255, 255, 255);
@@ -84,57 +164,27 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<jsPDF> {
 
   doc.setTextColor(0, 0, 0);
 
-  // Invoice title block
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("TAX INVOICE", margin, 58);
+  const metaLines = getInvoiceMetaLines(
+    data.invoiceNumber,
+    data.invoiceDate,
+    data.paymentMethod
+  );
+  const customerLines = getCustomerDetailLines(data.customer);
+  const infoY = 54;
 
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Invoice No: ${data.invoiceNumber}`, margin, 65);
-  doc.text(`Date: ${data.invoiceDate}`, margin, 70);
-  if (data.paymentMethod) {
-    doc.text(`Payment: ${data.paymentMethod.replace("_", " ")}`, margin, 75);
-  }
-
-  // Bill To box
-  const boxX = pageWidth - margin - 78;
-  const boxY = 54;
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(boxX, boxY, 78, 34, 2, 2, "S");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(8);
-  doc.text("BILL TO", boxX + 4, boxY + 7);
-  doc.setFont("helvetica", "normal");
-
-  const c = data.customer;
-  let cy = boxY + 13;
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(9);
-  doc.text(c.name || "Customer", boxX + 4, cy, { maxWidth: 70 });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  cy += 5;
-  if (c.phone) {
-    doc.text(`Mobile: ${c.phone}`, boxX + 4, cy);
-    cy += 4;
-  }
-  if (c.address) {
-    doc.text(c.address, boxX + 4, cy, { maxWidth: 70 });
-    cy += 4;
-  }
-  if (c.email) {
-    doc.text(c.email, boxX + 4, cy);
-    cy += 4;
-  }
-  if (c.gst_number) {
-    doc.text(`GST: ${c.gst_number}`, boxX + 4, cy);
-  }
+  const leftH = drawStepBlock(doc, margin, infoY, colWidth, "Tax Invoice", metaLines);
+  const rightH = drawStepBlock(
+    doc,
+    margin + colWidth + colGap,
+    infoY,
+    colWidth,
+    "Bill To",
+    customerLines
+  );
+  const tableStartY = infoY + Math.max(leftH, rightH) + 10;
 
   autoTable(doc, {
-    startY: 92,
+    startY: tableStartY,
     margin: { left: margin, right: margin },
     head: [["#", "Description", "Qty", "Unit Price", "Amount"]],
     body: data.items.map((item, i) => [
@@ -144,9 +194,10 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<jsPDF> {
       fmt(item.unitPrice),
       fmt(item.total),
     ]),
-    theme: "striped",
-    headStyles: { fillColor: [0, 0, 0], fontSize: 8, textColor: 255 },
-    bodyStyles: { fontSize: 8, cellPadding: 3 },
+    theme: "grid",
+    headStyles: { fillColor: [0, 0, 0], fontSize: 8.5, textColor: 255 },
+    bodyStyles: { fontSize: 8, cellPadding: 4, valign: "top", lineColor: [220, 220, 220] },
+    alternateRowStyles: { fillColor: [248, 248, 248] },
     columnStyles: {
       0: { cellWidth: 10 },
       1: { cellWidth: 88 },
@@ -198,7 +249,6 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<jsPDF> {
     y += noteLines.length * 5 + 6;
   }
 
-  // Grand total — always last before footer
   doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.6);
   doc.line(margin, y, pageWidth - margin, y);
@@ -208,14 +258,37 @@ export async function generateInvoicePdf(data: InvoiceData): Promise<jsPDF> {
   doc.setFontSize(14);
   doc.text("GRAND TOTAL:", totalsX - 10, y);
   doc.text(fmt(data.total), pageWidth - margin, y, { align: "right" });
+  y += 14;
+
+  if (hasBankDetails(data.bankDetails) && data.bankDetails) {
+    const bankLines = getBankDetailLines(data.bankDetails);
+    if (bankLines.length > 0) {
+      const bankH = measureStepBlockHeight(doc, pageWidth - margin * 2, bankLines);
+      if (y + bankH > pageHeight - 20) {
+        doc.addPage();
+        y = margin;
+      }
+
+      const bankBlockH = drawStepBlock(
+        doc,
+        margin,
+        y,
+        pageWidth - margin * 2,
+        "Bank Details",
+        bankLines
+      );
+      y += bankBlockH + 8;
+    }
+  }
 
   doc.setFontSize(7);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text("Thank you for shopping at " + data.storeName, pageWidth / 2, pageHeight - 14, {
+  const footerY = Math.min(Math.max(y + 6, pageHeight - 18), pageHeight - 10);
+  doc.text("Thank you for shopping at " + data.storeName, pageWidth / 2, footerY, {
     align: "center",
   });
-  doc.text("Goods sold are not returnable unless stated in warranty.", pageWidth / 2, pageHeight - 10, {
+  doc.text("Goods sold are not returnable unless stated in warranty.", pageWidth / 2, footerY + 4, {
     align: "center",
   });
 

@@ -174,6 +174,25 @@ export interface ImeiHistory {
   documents: { type: string; url: string }[];
 }
 
+export interface StoreSettings {
+  id: string;
+  store_name: string;
+  store_address: string | null;
+  store_phone: string | null;
+  store_email: string | null;
+  gst_number: string | null;
+  tax_rate: number;
+  logo_url: string | null;
+  invoice_prefix: string;
+  bank_name: string | null;
+  bank_account_title: string | null;
+  bank_account_number: string | null;
+  bank_branch: string | null;
+  bank_iban: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface DashboardStats {
   totalSales: number;
   todaySales: number;
